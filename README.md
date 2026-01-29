@@ -135,3 +135,67 @@ MIT
 
 - [crystal-memory](https://github.com/AdaWorldAPI/crystal-memory) - 4KB holographic crystals
 - [ladybug-rs](https://github.com/AdaWorldAPI/ladybug-rs) - Rust VSA/NARS foundation
+
+## Jina Embedding Cache
+
+SPO Crystal includes a smart caching layer for Jina embeddings that dramatically reduces API calls:
+
+### Strategy
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  EMBEDDING LOOKUP (< 0.15 Hamming threshold)                    │
+├─────────────────────────────────────────────────────────────────┤
+│  1. EXACT MATCH (HashMap)       → instant, 0 API calls         │
+│  2. NEAR MATCH (case/typo)      → use closest, 0 API calls     │
+│  3. CACHE MISS                  → Jina API, then cache         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Results
+
+```
+Processing 22 entity lookups...
+
+JinaCache Statistics:
+  Entries:      10
+  Lookups:      22
+  Exact hits:   7 (31.8%)   ← same string repeated
+  Near hits:    5 (22.7%)   ← case variations (Ada/ada/ADA)
+  API calls:    10 (45.5%)  ← actual Jina requests
+  Hit rate:     54.5%
+
+Without cache:  22 API calls
+With cache:     10 API calls
+Savings:        54.5%
+```
+
+For typical knowledge graphs with heavy entity repetition, savings can reach **90%+**.
+
+### Usage
+
+```rust
+use jina_cache::JinaCache;
+
+let mut cache = JinaCache::new("your_jina_api_key")
+    .with_persistence("/path/to/cache.bin");
+
+// First call: API request, then cached
+let fp1 = cache.get_fingerprint("Ada")?;
+
+// Second call: instant from cache
+let fp2 = cache.get_fingerprint("Ada")?;
+
+// Near match: uses cached "Ada" (no API call)
+let fp3 = cache.get_fingerprint("ada")?;
+
+cache.print_stats();
+```
+
+### Batch Processing
+
+```rust
+// More efficient: single API call for all misses
+let texts = vec!["Ada", "Jan", "loves", "creates"];
+let fingerprints = cache.get_fingerprints_batch(&texts)?;
+```
