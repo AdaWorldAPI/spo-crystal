@@ -957,6 +957,7 @@ fn main() {
     test_vsa_resonance();
     test_throughput();
     test_cypher_comparison();
+    test_jina_cache();
     
     println!("═══════════════════════════════════════════════════════════════════════");
     println!("                       ALL TESTS COMPLETE");
@@ -1384,5 +1385,52 @@ fn test_cypher_comparison() {
     println!("    ✓ Composable queries via VSA algebra (vs query optimizer)");
     println!("    ✓ 153KB memory footprint (vs GB for graph DB)");
     println!("    ✓ Qualia coloring for felt-sense overlay");
+    println!();
+}
+
+// ============================================================================
+// JINA CACHE DEMONSTRATION
+// ============================================================================
+
+mod jina_cache;
+mod jina_api;
+
+fn test_jina_cache() {
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("TEST: JINA EMBEDDING CACHE (Sparse API Usage)");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    
+    let mut cache = jina_cache::JinaCache::new("jina_b7b1d172a2c74ad2a95e2069d07d8bb9TayVx4WjQF0VWWDmx4xl32VbrHAc");
+    
+    // Typical knowledge graph entities - lots of repetition
+    let entities = vec![
+        "Ada", "Jan", "loves", "feels", "creates", "remembers",
+        "joy", "art", "music", "future", "first_kiss", "systems",
+        "Ada", "Ada", "Ada",  // Repeated - should hit cache
+        "Jan", "Jan",         // Repeated - should hit cache
+        "loves", "loves",     // Repeated - should hit cache
+        "ada",                // Near match for "Ada"
+        "ADA",                // Near match for "Ada"  
+        "LOVES",              // Near match for "loves"
+    ];
+    
+    println!("  Processing {} entity lookups...", entities.len());
+    println!();
+    
+    for entity in &entities {
+        let _ = cache.get_fingerprint(entity);
+    }
+    
+    cache.print_stats();
+    println!();
+    
+    // Show efficiency
+    let unique_count = 12;  // Actual unique base entities
+    let total_lookups = entities.len();
+    println!("  Without cache:  {} API calls", total_lookups);
+    println!("  With cache:     {} API calls", cache.stats.api_calls);
+    println!("  Savings:        {:.1}%", 
+             100.0 * (1.0 - cache.stats.api_calls as f64 / total_lookups as f64));
     println!();
 }
