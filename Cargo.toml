@@ -1,7 +1,8 @@
 [package]
 name = "spo-crystal"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "3D content-addressable knowledge graph with VSA fingerprints and Jina embedding cache"
 
 [dependencies]
 rand = "0.8"
@@ -11,3 +12,6 @@ rayon = "1.8"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
